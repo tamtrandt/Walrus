@@ -1,0 +1,55 @@
+# ============================
+# Node modules (KHÔNG push)
+# ============================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================
+# Build output
+# ============================
+dist/
+build/
+.cache/
+.next/
+out/
+
+# Vite
+vite.config.ts.timestamp-*
+*.tsbuildinfo
+
+# ============================
+# Environment files (bí mật)
+# ============================
+.env
+.env.local
+.env.*.local
+
+# ============================
+# System files
+# ============================
+.DS_Store
+Thumbs.db
+
+# ============================
+# Log files
+# ============================
+logs
+*.log
+*.log.*
+
+# ============================
+# Editor files
+# ============================
+.vscode/
+.idea/
+
+# ============================
+# Sui-specific
+# ============================
+.sui/
+.sui_config/
+.move/
+target/
+.build/

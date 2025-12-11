@@ -1,0 +1,156 @@
+/* NFT Mint Form Styles */
+
+.mint-form-container {
+  margin: 2rem auto;
+}
+
+.mint-form-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1),
+              0 2px 6px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e0e0;
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mint-form {
+  width: 100%;
+}
+
+.image-preview-container {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f5f7fa;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+}
+
+.image-preview {
+  width: 100%;
+  height: auto;
+  max-height: 300px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.mint-button {
+  width: 100%;
+  background: #5e6c84 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600 !important;
+  transition: all 0.3s ease !important;
+  cursor: pointer !important;
+  font-size: 1rem !important;
+}
+
+.mint-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(94, 108, 132, 0.3) !important;
+}
+
+.mint-button:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}
+
+.wallet-not-connected-message {
+  background: #fef3f3;
+  border-radius: 8px;
+  padding: 3rem 2rem;
+  border: 2px dashed #e0a0a0;
+  text-align: center;
+}
+
+/* Input Field Styles */
+[role="textbox"],
+[role="textbox"] input,
+[role="textbox"] textarea {
+  border: 1px solid #d0d0d0 !important;
+  border-radius: 6px !important;
+  padding: 0.75rem !important;
+  transition: all 0.3s ease !important;
+}
+
+[role="textbox"]:focus,
+[role="textbox"] input:focus,
+[role="textbox"] textarea:focus {
+  border-color: #5e6c84 !important;
+  box-shadow: 0 0 0 3px rgba(94, 108, 132, 0.08) !important;
+}
+
+/* File Input Styles */
+.file-input-wrapper {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.file-input-label {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: #5e6c84;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.file-input-label:hover {
+  background: #4a5570;
+}
+
+.file-input-label input[type="file"] {
+  display: none;
+}
+
+.image-source-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.image-source-tab {
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.image-source-tab.active {
+  color: #5e6c84;
+  border-bottom-color: #5e6c84;
+}
+
+.image-source-tab:hover {
+  color: #5e6c84;
+}
+
+@media (max-width: 768px) {
+  .mint-form-card {
+    padding: 1.5rem;
+  }
+
+  .mint-button {
+    padding: 0.75rem !important;
+  }
+}
