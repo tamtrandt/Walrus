@@ -22,9 +22,7 @@ vite.config.ts.timestamp-*
 # ============================
 # Environment files (bí mật)
 # ============================
-.env
-.env.local
-.env.*.local
+
 
 # ============================
 # System files
