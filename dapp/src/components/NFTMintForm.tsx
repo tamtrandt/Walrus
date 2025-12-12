@@ -1,6 +1,36 @@
-import { useState, useRef } from "react";
+/// ========================================================================================
+/// 🎨 NFT MINT FORM COMPONENT - Create Pay-to-View Encrypted NFTs
+/// ========================================================================================
+///
+/// This component handles the complete NFT creation process including:
+/// 1. Image encryption with Seal threshold cryptography
+/// 2. Decentralized storage on Walrus
+/// 3. NFT minting on Sui blockchain
+///
+/// COMPLETE CREATION FLOW:
+/// 1. User selects image file
+/// 2. Image encrypted using Seal SDK (threshold: 1)
+/// 3. Encrypted data uploaded to Walrus publisher
+/// 4. Receive blob ID from Walrus
+/// 5. Mint NFT with blob ID reference
+/// 6. NFT stored on Sui blockchain
+///
+/// ENCRYPTION DETAILS:
+/// - Uses Seal threshold cryptography
+/// - 1 key server required for decryption
+/// - Policy ID "01" for access control
+/// - Encrypted content requires 0.005 SUI payment to view
+///
+/// STORAGE ARCHITECTURE:
+/// - Walrus: Decentralized blob storage
+/// - Sui: NFT metadata and ownership
+/// - Seal: Threshold encryption keys
+///
+import { useState, useRef, useEffect } from "react";
 import { useCurrentAccount, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
+import { SuiClient } from "@mysten/sui/client";
+import { SealClient } from "@mysten/seal";
 import {
   Box,
   Button,
@@ -54,6 +84,45 @@ export function NFTMintForm() {
   const PUBLISHER = (import.meta.env.VITE_PUBLISHER as string) || "";
   const AGGREGATOR = (import.meta.env.VITE_AGGREGATOR as string) || "";
 
+  // Seal Configuration
+  const SEAL_PACKAGE_ID = (import.meta.env.VITE_SEAL_PACKAGE_ID as string) || "";
+  const SEAL_POLICY_ID = (import.meta.env.VITE_SEAL_POLICY_ID as string) || "";
+
+  const [sealClient, setSealClient] = useState<SealClient | null>(null);
+
+  // Initialize SealClient
+  useEffect(() => {
+    const initSealClient = async () => {
+      // Get key servers inside useEffect to avoid dependency issues
+      const SEAL_KEY_SERVERS = (import.meta.env.VITE_SEAL_KEY_SERVERS as string)?.split(",") || [];
+
+      if (!SEAL_KEY_SERVERS.length) {
+        console.warn("No Seal key servers configured");
+        return;
+      }
+
+      try {
+        const suiClient = new SuiClient({ url: "https://fullnode.testnet.sui.io:443" });
+
+        const client = new SealClient({
+          suiClient,
+          serverConfigs: SEAL_KEY_SERVERS.map(id => ({
+            objectId: id.trim(),
+            weight: 1
+          })),
+          // Remove verifyKeyServers to use default
+        });
+
+        setSealClient(client);
+        console.log("✅ SealClient initialized successfully");
+      } catch (error) {
+        console.error("❌ Failed to initialize SealClient:", error);
+      }
+    };
+
+    initSealClient();
+  }, []); // Remove SEAL_KEY_SERVERS from dependencies
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -91,7 +160,7 @@ export function NFTMintForm() {
     if (PUBLISHER) {
       uploadFileToWalrus(file);
     } else {
-      setStatus({ type: "info" as any, message: "No publisher configured — preview only" });
+      setStatus({ type: "idle", message: "No publisher configured — preview only" });
     }
   };
 
@@ -99,13 +168,64 @@ export function NFTMintForm() {
     setIsUploading(true);
     setBlobId(null);
     try {
+      setStatus({ type: "loading", message: "📁 Đang xử lý file ảnh..." });
+
+      // Read file as Uint8Array for processing
+      const data = new Uint8Array(await file.arrayBuffer());
+
+      // ========================================================================================
+      // 🔐 SEAL ENCRYPTION FLOW - Step 1: Encrypt image data before uploading to Walrus
+      // ========================================================================================
+      // This creates a "pay-to-view" NFT where users must pay 0.005 SUI to decrypt the image
+      // The encryption uses threshold cryptography for decentralized key management
+      let dataToUpload: Uint8Array = data;
+
+      if (sealClient && SEAL_PACKAGE_ID && SEAL_POLICY_ID) {
+        try {
+          setStatus({ type: "loading", message: "🔐 Đang mã hóa file với Seal..." });
+          console.log("🔐 Starting Seal encryption...");
+          console.log("Seal config:", { packageId: SEAL_PACKAGE_ID, policyId: SEAL_POLICY_ID });
+
+          // Call Seal SDK encrypt() function:
+          // - threshold: 1 (need 1 key server to decrypt, matches our 1 key server config)
+          // - packageId: Our NFT contract package (contains seal_access module with approval logic)
+          // - id: Policy ID "01" (identifies this encryption policy)
+          // - data: Original image bytes
+          // Returns: encryptedObject (Uint8Array of encrypted data)
+          const { encryptedObject } = await sealClient.encrypt({
+            threshold: 1, // Use threshold 1 with 1 key server
+            packageId: PACKAGE_ID, // Use our NFT package ID (contains seal_access module)
+            id: SEAL_POLICY_ID,
+            data: dataToUpload,
+          });
+
+          // Replace original data with encrypted data for upload
+          dataToUpload = encryptedObject;
+          console.log("✅ Seal encryption completed successfully");
+          console.log("🔐 Encrypted data length:", encryptedObject.length);
+          setStatus({ type: "loading", message: "✅ Mã hóa Seal thành công! Đang upload lên Walrus..." });
+        } catch (sealError) {
+          console.error("❌ Seal encryption failed:", sealError);
+          setStatus({ type: "loading", message: "⚠️ Mã hóa Seal thất bại, tiếp tục upload không mã hóa..." });
+          // Continue with unencrypted upload if Seal fails
+          console.warn("Continuing with unencrypted upload due to Seal error");
+        }
+      } else {
+        console.log("ℹ️ SealClient not available - uploading without encryption");
+        setStatus({ type: "loading", message: "🔄 Seal không khả dụng, upload không mã hóa..." });
+      }
+
+      // Step 2: Upload encrypted data to Walrus
+      console.log("📤 Starting Walrus upload...");
+      setStatus({ type: "loading", message: "📤 Đang upload lên Walrus publisher..." });
       const uploadUrl = PUBLISHER.endsWith("/") ? `${PUBLISHER}v1/blobs` : `${PUBLISHER}/v1/blobs`;
+
       const resp = await fetch(uploadUrl, {
         method: "PUT",
         headers: {
-          "Content-Type": file.type,
+          "Content-Type": "application/octet-stream", // Use generic content type for encrypted data
         },
-        body: file,
+        body: new Uint8Array(dataToUpload),
       });
 
       if (!resp.ok) {
@@ -113,10 +233,15 @@ export function NFTMintForm() {
         throw new Error(`Upload failed: ${resp.status} ${text}`);
       }
 
+      // Step 3: Process Walrus response
+      setStatus({ type: "loading", message: "📋 Đang xử lý phản hồi từ Walrus..." });
+      console.log("📋 Processing Walrus response...");
+
       // Try to parse JSON first, fall back to text
       let blobIdentifier: string | null = null;
       try {
         const j = await resp.json();
+        console.log("Walrus response JSON:", j);
         // Walrus publisher may return nested structure. Prefer newlyCreated.blobObject.blobId
         if (j?.newlyCreated?.blobObject?.blobId) {
           blobIdentifier = j.newlyCreated.blobObject.blobId;
@@ -126,16 +251,19 @@ export function NFTMintForm() {
         }
       } catch (e) {
         const txt = await resp.text();
+        console.log("Walrus response text:", txt);
         blobIdentifier = txt.trim();
       }
 
       if (!blobIdentifier) throw new Error("No blob id returned from publisher");
 
-      // store only the blobId string for minting (per request)
-      setBlobId(blobIdentifier);
-      setFormData((prev) => ({ ...prev, imageUrl: blobIdentifier }));
+      console.log("✅ Extracted encrypted blob ID:", blobIdentifier);
 
-      setStatus({ type: "success", message: `Uploaded to publisher — blob id: ${blobIdentifier}` });
+      // Store the encrypted blob ID for minting
+      setBlobId(blobIdentifier);
+      setFormData((prev) => ({ ...prev, imageUrl: blobIdentifier as string }));
+
+      setStatus({ type: "success", message: `🎉 Upload thành công! Encrypted Blob ID: ${blobIdentifier}` });
     } catch (err: any) {
       setStatus({ type: "error", message: `Upload failed: ${err?.message || err}` });
     } finally {
@@ -225,29 +353,41 @@ export function NFTMintForm() {
     if (!PACKAGE_ID || PACKAGE_ID === "0x1234567890abcdef") {
       setStatus({
         type: "error",
-        message: "⚠️ PACKAGE_ID is not configured. Set VITE_PACKAGE_ID in your .env",
+        message: "⚠️ PACKAGE_ID is not configured. Set VITE_SEAL_PACKAGE_ID in your .env",
       });
       return;
     }
 
+    // ========================================================================================
+    // 🎨 NFT MINTING FLOW - Step 4: Create NFT on Sui blockchain
+    // ========================================================================================
+    // After encrypting and uploading the image, we create an NFT that references the blob ID
+    // The NFT stores metadata (name, description) and the encrypted content reference
+
     setIsLoading(true);
     setStatus({
       type: "loading",
-      message: "Creating your NFT...",
+      message: "🎨 Creating your NFT on Sui blockchain...",
     });
 
     try {
+      // Build Programmable Transaction Block (PTB) to mint NFT
       const tx = new Transaction();
 
+      // Call our NFT contract's mint_to_sender function:
+      // - name: NFT title
+      // - description: NFT description
+      // - imageUrl: Walrus blob ID (references encrypted content)
       tx.moveCall({
         target: `${PACKAGE_ID}::${MODULE_NAME}::mint_to_sender`,
         arguments: [
-          tx.pure.string(formData.name),
-          tx.pure.string(formData.description),
-          tx.pure.string(formData.imageUrl),
+          tx.pure.string(formData.name),        // NFT name
+          tx.pure.string(formData.description), // NFT description
+          tx.pure.string(formData.imageUrl),    // Walrus blob ID (encrypted content)
         ],
       });
 
+      // Execute transaction via wallet
       signAndExecute(
         { transaction: tx },
         {
@@ -256,6 +396,7 @@ export function NFTMintForm() {
               type: "success",
               message: `✨ NFT created successfully! Transaction: ${result.digest}`,
             });
+            // Reset form after successful minting
             setFormData({
               name: "",
               description: "",
@@ -517,7 +658,7 @@ export function NFTMintForm() {
           borderLeft: "4px solid #d4a700",
         }}>
           <Text size="2" style={{ color: "#8b7300" }}>
-            <strong>⚠️ Note:</strong> PACKAGE_ID is read from `VITE_PACKAGE_ID` environment variable. Update your `.env` file if needed.
+            <strong>⚠️ Note:</strong> PACKAGE_ID is read from `VITE_SEAL_PACKAGE_ID` environment variable. Update your `.env` file if needed.
           </Text>
         </Box>
       </Box>

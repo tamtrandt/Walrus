@@ -3,9 +3,9 @@
  * Update these values with your deployed contract details
  */
 
-// Read package ID from Vite env variable VITE_PACKAGE_ID
-// Falls back to the previous placeholder if the env var is not set.
-export const PACKAGE_ID: string = (import.meta.env.VITE_PACKAGE_ID as string) || "0x1234567890abcdef";
+// Read package ID from Vite env variable VITE_SEAL_PACKAGE_ID
+// This is our deployed NFT contract package containing nft and seal_access modules
+export const PACKAGE_ID: string = (import.meta.env.VITE_SEAL_PACKAGE_ID as string) || "0x1234567890abcdef";
 
 export const CONTRACT_CONFIG = {
   // Package ID (read from env at build time)
